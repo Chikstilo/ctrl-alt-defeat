@@ -1,4 +1,3 @@
-"""Простая Bearer-авторизация для write-эндпоинтов."""
 import logging
 import os
 
@@ -15,11 +14,6 @@ security = HTTPBearer(auto_error=False)
 def require_token(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> None:
-    """
-    Проверяет заголовок Authorization: Bearer <token>.
-
-    Если API_TOKEN не задан в .env — работает в dev-режиме (без проверки).
-    """
     if not API_TOKEN:
         return
 

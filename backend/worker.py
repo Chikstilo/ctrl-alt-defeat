@@ -39,24 +39,18 @@ stats = {
 
 MSK_TZ = timezone(timedelta(hours=3))
 
-# Флаги для отладки
 DEBUG_LOG_FEATURES = os.getenv("DEBUG_LOG_FEATURES", "0") == "1"
 DEBUG_SAVE_FEATURES = os.getenv("DEBUG_SAVE_FEATURES", "0") == "1"
-DEBUG_FEATURES_TTL = 3600  # 1 час
-
+DEBUG_FEATURES_TTL = 3600  
 FEATURE_BUILDER = FeatureBuilder()
 
-# Кэш расписания (route_id -> (timestamp, rows))
 _SCHEDULE_CACHE: dict[str, tuple[float, list[dict]]] = {}
-SCHEDULE_CACHE_TTL = 300  # 5 минут
+SCHEDULE_CACHE_TTL = 300 
 
-# === Детекция прохождения остановок ===
-# 1.5 км — покрывает весь квадрат эмулятора (в логах dist_to_target_m до 1300м)
 STOP_PROXIMITY_THRESHOLD_M = 1500.0
-# Окно не используется (окключено ниже), оставлено для совместимости
+
 CROSSING_TIME_WINDOW = timedelta(minutes=30)
 
-# Множество уже зафиксированных прохождений: vehicle_id -> set[(stop_id, planned_iso)]
 _passed_stops: dict[str, set[tuple[str, str]]] = {}
 _PASSED_STOPS_MAX = 500
 
@@ -64,7 +58,6 @@ RADIUS_EARTH_M = 6_371_000
 
 
 def haversine_m(lon1, lat1, lon2, lat2) -> float:
-    """Расстояние в метрах между двумя точками (lon/lat, WGS84)."""
     try:
         if any(v is None for v in [lon1, lat1, lon2, lat2]):
             return float("inf")
@@ -74,7 +67,6 @@ def haversine_m(lon1, lat1, lon2, lat2) -> float:
         return 2 * RADIUS_EARTH_M * asin(sqrt(a))
     except Exception:
         return float("inf")
-
 
 def ensure_group(redis_client) -> None:
     try:
@@ -95,9 +87,7 @@ def parse_datetime(value) -> datetime:
         result = result.replace(tzinfo=MSK_TZ)
     return result
 
-
 def schedule_delay(route_id, event_time):
-    """Fallback: отклонение от расписания по ближайшей остановке."""
     if not route_id:
         return None
     start = event_time - timedelta(minutes=SCHEDULE_MATCH_WINDOW_MINUTES)
@@ -122,10 +112,6 @@ def schedule_delay(route_id, event_time):
 
 
 def load_schedule_rows(route_id: str) -> list[dict]:
-    """
-    Достаёт расписание из БД для маршрута.
-    Время конвертируется в naive-MSK (согласовано с FeatureBuilder).
-    """
     db = SessionLocal()
     try:
         rows = (
@@ -151,7 +137,6 @@ def load_schedule_rows(route_id: str) -> list[dict]:
 
 
 def load_schedule_rows_cached(route_id: str) -> list[dict]:
-    """Кэширует расписание на 5 минут, чтобы не долбить БД на каждый пакет."""
     now = time.time()
     cached = _SCHEDULE_CACHE.get(route_id)
     if cached and now - cached[0] < SCHEDULE_CACHE_TTL:
@@ -162,10 +147,6 @@ def load_schedule_rows_cached(route_id: str) -> list[dict]:
 
 
 def load_recent_crossings(vehicle_id: str, limit: int = 50) -> list[dict]:
-    """
-    Последние факты прохождения остановок для борта — от свежих к старым.
-    Используется для фич own_delay_*.
-    """
     db = SessionLocal()
     try:
         rows = (
@@ -191,22 +172,14 @@ def detect_stop_crossing(
     event_time: datetime,
     schedule: list[dict],
 ) -> dict | None:
-    """
-    Определяет, прошёл ли борт мимо плановой остановки.
-    Окно времени ОТКЛЮЧЕНО — эмулятор движется хаотично, синтетическое
-    расписание не отражает его реальную траекторию.
-    """
     if not route_id or not schedule:
         return None
 
-    # event_time -> naive-MSK для сравнения с расписанием
     if event_time.tzinfo is not None:
         event_msk = event_time.astimezone(MSK_TZ).replace(tzinfo=None)
     else:
         event_msk = event_time
 
-    # Окно отключено: эмулятор движется хаотично, синтетическое расписание
-    # не отражает его реальную траекторию.
     candidates = []
     for s in schedule:
         s_lat = s.get("lat")
@@ -223,7 +196,6 @@ def detect_stop_crossing(
     if not candidates:
         return None
 
-    # Ближайшая по геометрии остановка из кандидатов
     best = None
     best_dist = float("inf")
     for stop in candidates:
@@ -235,14 +207,12 @@ def detect_stop_crossing(
     if best is None or best_dist > STOP_PROXIMITY_THRESHOLD_M:
         return None
 
-    # Проверяем, не записывали ли мы это прохождение ранее
     planned_iso = best["scheduled_arrival"].isoformat()
     key = (best["stop_id"], planned_iso)
     passed = _passed_stops.setdefault(vehicle_id, set())
     if key in passed:
         return None
 
-    # Ограничиваем размер set
     if len(passed) > _PASSED_STOPS_MAX:
         passed.clear()
 
@@ -262,11 +232,7 @@ def detect_stop_crossing(
 
 
 def save_crossing(crossing: dict) -> bool:
-    """
-    Сохраняет факт прохождения остановки в БД.
-    Использует ON CONFLICT DO NOTHING (без указания constraint name,
-    чтобы работало и без UNIQUE constraint).
-    """
+
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     db = SessionLocal()
@@ -306,10 +272,7 @@ def save_crossing(crossing: dict) -> bool:
         db.close()
 
 def predict_via_ml(features: dict) -> dict | None:
-    """
-    Отправляет фичи в ML-сервис с 3 попытками.
-    Возвращает None только если все попытки провалились.
-    """
+
     import numpy as np
 
     clean_features = {
@@ -397,7 +360,6 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
         speed = float(data.get("speed") or 0)
         heading = float(data.get("heading") or 0)
 
-        # 1. Обновляем буфер телеметрии (naive-MSK)
         event_time_msk = (
             event_time.astimezone(MSK_TZ).replace(tzinfo=None)
             if event_time.tzinfo is not None else event_time
@@ -410,10 +372,8 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
                 lat=lat, lon=lon, speed=speed, heading=heading,
             )
 
-        # 2. Загружаем расписание (с кэшем)
         schedule = load_schedule_rows_cached(route_id) if route_id else []
 
-        # 3. Детекция прохождения остановки
         if route_id and schedule:
             try:
                 crossing = detect_stop_crossing(
@@ -429,16 +389,13 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
             except Exception:
                 logger.exception("Ошибка детекции crossing")
 
-        # 4. Загружаем историю прохождений для фич own_delay_*
         crossings_history = (
             load_recent_crossings(str(vehicle_id), limit=50)
             if route_id else []
         )
 
-        # 5. Fallback delay
         delay = schedule_delay(route_id, event_time)
 
-        # 6. Пробуем CatBoost
         prediction = None
         if route_id and schedule:
             current = {
@@ -455,7 +412,6 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
                 crossings=crossings_history,
             )
             if features:
-                # === DEBUG: логирование фич ===
                 if DEBUG_LOG_FEATURES:
                     try:
                         logger.info(
@@ -466,7 +422,6 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
                     except Exception:
                         logger.exception("Не удалось залогировать фичи")
 
-                # === DEBUG: сохранение пары "вход → фичи" в Redis ===
                 if DEBUG_SAVE_FEATURES:
                     try:
                         debug_key = f"debug:features:{vehicle_id}"
@@ -490,12 +445,10 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
 
                 prediction = predict_via_ml(features)
 
-        # 7. Fallback
         if prediction is None:
             stats["fallback_used"] += 1
             prediction = fallback_predict(data, delay, event_time)
 
-        # 8. Запись
         delay_seconds = max(-600, min(3600, int(prediction["delay_seconds"])))
         probability = float(prediction["probability"])
         risk_level = prediction["risk_level"]
@@ -525,7 +478,6 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # 9. БД
         db = SessionLocal()
         try:
             db.add(ProcessedStreamMessage(stream_id=f"{NDTP_STREAM_KEY}/{message_id}"))
@@ -547,7 +499,6 @@ def process_message(redis_client, message_id: str, data: dict) -> bool:
         finally:
             db.close()
 
-        # 10. Redis ZSET кэш
         cache_key = f"route:{record['route_id']}:vehicles"
         for old_raw in redis_client.zrange(cache_key, 0, -1):
             try:

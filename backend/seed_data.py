@@ -1,7 +1,5 @@
-"""
-Тестовая заливка: расписание + HTTP-телеметрия. Для отладки без эмулятора.
-Запуск: python seed_data.py
-"""
+# Тестовая заливка: расписание + HTTP-телеметрия. Для отладки без эмулятора
+# Запуск python seed_data.py
 import random
 import sys
 from datetime import datetime, timedelta
@@ -26,13 +24,13 @@ def schedule(route_id: str, n: int = 10):
 
 
 def main():
-    print(f"🚀 Заливка в {API_BASE}")
+    print(f"Заливка в {API_BASE}")
     for r in ROUTES:
         try:
             resp = requests.post(f"{API_BASE}/schedules/", json=schedule(r), timeout=10)
-            print(f"   ✅ {r}: {resp.status_code}")
+            print(f"{r}: {resp.status_code}")
         except requests.exceptions.ConnectionError:
-            print(f"❌ Нет соединения с {API_BASE}")
+            print(f"Нет соединения с {API_BASE}")
             sys.exit(1)
 
     total = 0
@@ -55,7 +53,7 @@ def main():
                     total += 1
             except Exception as e:
                 print(f"   ❌ {e}")
-    print(f"\n🎉 Отправлено: {total}")
+    print(f"\nОтправлено: {total}")
 
 
 if __name__ == "__main__":

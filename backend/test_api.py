@@ -1,4 +1,3 @@
-"""Тесты API. Запуск: py -m pytest test_api.py -v"""
 from fastapi.testclient import TestClient
 from main import app
 

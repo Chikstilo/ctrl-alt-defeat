@@ -46,7 +46,7 @@ class PredictionOut(BaseModel):
     probability: float | None = Field(default=None, ge=0, le=100)
     risk_level: str = Field(pattern=r"^(low|medium|high)$")
     scheduled_arrival: datetime | None = None
-    arrival_time: datetime                      # вместо predicted_for
+    arrival_time: datetime                     
     recommendation: str | None = None
     updated_at: datetime | None = None
 
