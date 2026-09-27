@@ -2,7 +2,6 @@
 import struct
 import os
 
-# Переменные для запуска тестов с хоста (Docker пробрасывает порты 5433/6380)
 os.environ.setdefault("DB_HOST", "localhost")
 os.environ.setdefault("DB_PORT", "5433")
 os.environ.setdefault("DB_USER", "postgres")
@@ -23,7 +22,6 @@ from ndtp_parser import (
 
 
 def build_npl(data_size, packet_type, peer_address, crc, request_id=0):
-    """Собирает NPL-заголовок (15 байт)."""
     return struct.pack(
         "<HHHHBIH",
         NPL_SIGNATURE, data_size, 0, crc, packet_type, peer_address, request_id,
@@ -31,7 +29,7 @@ def build_npl(data_size, packet_type, peer_address, crc, request_id=0):
 
 
 def build_nph(service_id, packet_type, request_id=0):
-    """Собирает NPH-заголовок (10 байт)."""
+
     return struct.pack("<HHHI", service_id, packet_type, 0, request_id)
 
 
@@ -45,11 +43,9 @@ def build_nav_cell(
     valid=True,
     nsat=10,
 ):
-    """Собирает навигационную ячейку (26 байт payload)."""
     lat_raw = int(abs(lat) * 10_000_000)
     lon_raw = int(abs(lon) * 10_000_000)
 
-    # extraDop: bit5 = north, bit6 = east, bit7 = valid
     dop_bits = 0
     if lat >= 0:
         dop_bits |= 1 << 5
@@ -72,7 +68,6 @@ def build_realtime_frame(
     request_id=1,
     nav_payload=None,
 ):
-    """Собирает полный NDTP-кадр с корректным CRC (packet_type=101)."""
     if nav_payload is None:
         nav_payload = build_nav_cell()
 
@@ -94,7 +89,7 @@ def build_realtime_frame(
 
 
 def build_handshake_frame(peer_address=1166336, request_id=1):
-    """Собирает handshake-кадр (packet_type=100)."""
+
     nph = build_nph(service_id=0, packet_type=100, request_id=request_id)
     data_size = len(nph)
 

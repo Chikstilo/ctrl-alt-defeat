@@ -1,12 +1,9 @@
-"""
-Автоматически подстраивается под текущий маршрут эмулятора.
-Читает координаты из последних пакетов telemetry и строит расписание внутри.
-"""
+# Автоматически подстраивается под текущий маршрут эмулятора.
+# Читает координаты из последних пакетов telemetry и строит расписание внутри.
 import math
 import subprocess
 import requests
 from datetime import datetime, timedelta, timezone
-
 # Получаем реальные координаты из БД
 result = subprocess.run(
     ["docker", "exec", "hackathon-postgres-1", "psql", "-U", "postgres",
@@ -20,7 +17,6 @@ CENTER_LAT = float(line[0])
 CENTER_LON = float(line[1])
 print(f"Центр эмулятора: {CENTER_LAT}, {CENTER_LON}")
 
-# Оси эллипса — 500 и 300 метров
 LAT_RADIUS = 0.005
 LON_RADIUS = 0.004
 
@@ -34,7 +30,6 @@ for i in range(10):
         "lon": CENTER_LON + LON_RADIUS * math.cos(angle),
     })
 
-# Регистрация
 API = "http://localhost:8001/schedules/"
 TOKEN = "Xk9mP2qL7wN4vR8tY6bZ3cF1dH5jM8nQ"
 headers = {"Authorization": f"Bearer {TOKEN}"}

@@ -1,4 +1,3 @@
-"""Тесты API-эндпоинтов."""
 import os
 
 import pytest
@@ -17,9 +16,6 @@ def auth_headers():
     token = os.getenv("API_TOKEN", "")
     return {"Authorization": f"Bearer {token}"} if token else {}
 
-
-# ============== Health ==============
-
 def test_root(client):
     r = client.get("/")
     assert r.status_code == 200
@@ -35,9 +31,6 @@ def test_health_returns_all_flags(client):
     assert "ml_service" in data
     assert "ndtp_tcp" in data
 
-
-# ============== Vehicles ==============
-
 def test_list_vehicles(client):
     r = client.get("/vehicles/")
     assert r.status_code == 200
@@ -45,7 +38,6 @@ def test_list_vehicles(client):
 
 
 def test_create_vehicle_requires_auth(client):
-    """POST без токена → 401, если API_TOKEN задан."""
     token = os.getenv("API_TOKEN", "")
     if not token:
         pytest.skip("API_TOKEN не задан, авторизация отключена")
@@ -84,9 +76,6 @@ def test_get_vehicle_404(client):
     r = client.get("/vehicles/999999999")
     assert r.status_code == 404
 
-
-# ============== Predictions ==============
-
 def test_predictions_latest_unknown_route(client):
     r = client.get("/predictions/route-does-not-exist/latest")
     assert r.status_code == 404
@@ -95,9 +84,6 @@ def test_predictions_latest_unknown_route(client):
 def test_predictions_unknown_route(client):
     r = client.get("/predictions/route-does-not-exist")
     assert r.status_code == 404
-
-
-# ============== Schedules ==============
 
 def test_schedules_unknown_route(client):
     r = client.get("/schedules/route-does-not-exist")

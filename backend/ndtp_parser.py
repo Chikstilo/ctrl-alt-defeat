@@ -148,15 +148,12 @@ def parse_cells(body: bytes) -> NavCell | None:
 
     while position + 2 <= len(body):
         cell_type = body[position]
-        position += 2  # type и number
+        position += 2 
 
         if cell_type == CELL_NAV:
             payload_length = 26
         else:
             payload_length = CELL_PAYLOAD_LENGTHS.get(cell_type)
-
-        # Неизвестную ячейку нельзя безопасно пропустить:
-        # в спецификации её длина может быть другой.
         if payload_length is None:
             break
 
@@ -190,7 +187,6 @@ def parse_packet(frame: bytes) -> NDTPPacket | None:
     if nph is None:
         return None
 
-    # В поле NPL CRC лежит с переставленными байтами.
     crc_from_packet = (
         ((npl["crc_raw"] & 0xFF) << 8)
         | ((npl["crc_raw"] >> 8) & 0xFF)

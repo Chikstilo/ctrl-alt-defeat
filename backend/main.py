@@ -10,7 +10,7 @@ from redis import Redis
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-import models  # noqa: F401 — регистрирует таблицы в metadata
+import models
 from cache import get_redis
 from config import ML_SERVICE_URL, NDTP_STREAM_KEY
 from database import engine, get_db
@@ -154,7 +154,6 @@ def worker_stats(redis_client: Redis = Depends(get_redis)) -> dict:
 
 @app.get("/routes", tags=["Routes"])
 def list_routes(redis_client: Redis = Depends(get_redis)) -> dict:
-    """Список маршрутов с агрегированной статистикой по кэшу прогнозов."""
     routes = set()
     for key in redis_client.scan_iter(match="route:*:vehicles", count=100):
         parts = key.split(":")

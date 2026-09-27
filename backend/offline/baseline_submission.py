@@ -1,13 +1,8 @@
-"""
-Baseline submission: prediction = cur_dev_s.
-Запуск: python baseline_submission.py path/to/validate/points.csv path/to/sample_submission.csv out.csv
-"""
 import csv
 import sys
 
 
 def main(points_path: str, template_path: str, out_path: str):
-    # 1. Читаем cur_dev_s по sample_id
     cur_dev = {}
     with open(points_path, "r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -16,7 +11,6 @@ def main(points_path: str, template_path: str, out_path: str):
             if sid:
                 cur_dev[sid] = row.get("cur_dev_s", "0") or "0"
 
-    # 2. Читаем шаблон и подставляем
     with open(template_path, "r", encoding="utf-8-sig") as fin, \
          open(out_path, "w", encoding="utf-8", newline="") as fout:
         reader = csv.DictReader(fin, delimiter=";")
@@ -27,7 +21,7 @@ def main(points_path: str, template_path: str, out_path: str):
             pred = cur_dev.get(sid, "0")
             writer.writerow([sid, pred])
 
-    print(f"✅ Готово: {out_path}")
+    print(f"Готово: {out_path}")
 
 
 if __name__ == "__main__":

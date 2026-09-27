@@ -1,4 +1,3 @@
-"""Обёртка над CatBoost-моделью."""
 import json
 import logging
 import os
@@ -14,7 +13,6 @@ logger = logging.getLogger("ml_service.model")
 MSK_TZ = timezone(timedelta(hours=3))
 MODELS_DIR = Path("/app/models")
 
-# Флаг для отладки: логировать вход/выход модели
 DEBUG_LOG_MODEL = os.getenv("DEBUG_LOG_MODEL", "0") == "1"
 
 
@@ -54,7 +52,6 @@ class ModelWrapper:
             self.loaded = False
 
     def predict(self, features: dict) -> dict:
-        # Собираем строку СТРОГО в порядке feature_cols
         row = {}
         for col in self.feature_cols:
             v = features.get(col)
@@ -64,13 +61,9 @@ class ModelWrapper:
                 row[col] = v
 
         df = pd.DataFrame([row], columns=self.feature_cols)
-
-        # Категориальные фичи должны быть str
         for cat_col in self.cat_features:
             if cat_col in df.columns:
                 df[cat_col] = df[cat_col].astype(str)
-
-        # === DEBUG: логирование входа ===
         if DEBUG_LOG_MODEL:
             try:
                 logger.info(
@@ -83,7 +76,6 @@ class ModelWrapper:
 
         delay_seconds = float(self.model.predict(df)[0])
 
-        # === DEBUG: логирование выхода ===
         if DEBUG_LOG_MODEL:
             try:
                 logger.info("MODEL OUTPUT delay_seconds=%.2f", delay_seconds)
@@ -92,7 +84,6 @@ class ModelWrapper:
 
         delay_seconds = max(-600, min(3600, int(round(delay_seconds))))
 
-        # risk_level, probability — вычисляем сами из delay_seconds
         if delay_seconds > 120:
             risk, prob = "high", 85.0
             recommendation = "Выпустить дополнительный ТС на линию"

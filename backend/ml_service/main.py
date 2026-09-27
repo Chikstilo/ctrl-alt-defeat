@@ -28,10 +28,6 @@ app = FastAPI(
 
 
 class PredictRequest(BaseModel):
-    """
-    Словарь из 45 фич, которые воркер построил сам.
-    Имена должны совпадать с feature_cols из model_contract.json.
-    """
     features: dict[str, float | int | str | None]
 
 

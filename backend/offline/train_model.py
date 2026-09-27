@@ -1,7 +1,3 @@
-"""
-Обучение CatBoost для предсказания target_delay_s.
-Запуск: python train_model.py path/to/dataset
-"""
 import csv
 import sys
 from datetime import datetime
@@ -18,10 +14,6 @@ def load_traffic(path: Path) -> pd.DataFrame:
 
 
 def build_features(traffic: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
-    """
-    Для каждой прогнозной точки (sample_id, tr_id, T) собираем фичи:
-    только по телеметрии с event_time <= T.
-    """
     rows = []
     traffic_by_tr = {tr: g.sort_values("event_time") for tr, g in traffic.groupby("tr_id")}
 
@@ -35,7 +27,6 @@ def build_features(traffic: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
         if past.empty:
             continue
         last = past.iloc[-1]
-        # простые фичи
         rows.append({
             "sample_id": lbl["sample_id"],
             "cur_dev_s": lbl["cur_dev_s"],
@@ -77,7 +68,7 @@ def main(root: str):
     print(f"MAE на test: {mae:.2f} сек")
 
     model.save_model("ml_service/models/model.cbm")
-    print("✅ Модель сохранена в ml_service/models/model.cbm")
+    print("Модель сохранена в ml_service/models/model.cbm")
 
 
 if __name__ == "__main__":

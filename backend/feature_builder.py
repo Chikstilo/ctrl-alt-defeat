@@ -1,10 +1,7 @@
-"""
-Построение ~45 фич для CatBoost-модели из потоковых данных NDTP.
+# Построение 45 фич для CatBoost-модели из потоковых данных NDTP.
+# own_delay_* теперь берутся из stop_crossings
+# которые пишет worker.py при обнаружении борта в радиусе N метров от плановой остановки
 
-own_delay_* теперь берутся из stop_crossings (факты прохождения остановок),
-которые пишет worker.py при обнаружении борта в радиусе N метров от плановой
-остановки.
-"""
 import logging
 from collections import deque
 from datetime import datetime, timedelta, timezone
@@ -19,9 +16,8 @@ BUFFER_MINUTES = 15
 BUFFER_MAX_POINTS = 500
 RADIUS_EARTH_M = 6_371_000
 
-
 def haversine_m(lon1, lat1, lon2, lat2):
-    """Расстояние в метрах между двумя точками (lon/lat, WGS84, приближение сферой)."""
+
     if any(v is None or (isinstance(v, float) and np.isnan(v)) for v in [lon1, lat1, lon2, lat2]):
         return float("nan")
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -31,7 +27,6 @@ def haversine_m(lon1, lat1, lon2, lat2):
 
 
 def circular_abs_diff_deg(h):
-    """Средний угол поворота между последовательными heading (учёт перехода 0/360)."""
     if len(h) < 2:
         return float("nan")
     d = np.diff(h)
@@ -40,11 +35,6 @@ def circular_abs_diff_deg(h):
 
 
 class TelemetryBuffer:
-    """
-    In-memory буфер последних N минут телеметрии.
-    - по vehicle_id (для own-фич)
-    - по route_id  (для peer-фич)
-    """
 
     def __init__(self):
         self._by_vehicle: dict[str, deque] = {}
@@ -80,10 +70,6 @@ class TelemetryBuffer:
 
 
 class FeatureBuilder:
-    """
-    Строит словарь фич для одной прогнозной точки (route_id, T).
-    Имена фич СТРОГО совпадают с feature_cols из model_contract.json.
-    """
 
     def __init__(self):
         self.telemetry = TelemetryBuffer()
@@ -112,7 +98,6 @@ class FeatureBuilder:
         if T.tzinfo is not None:
             T = T.astimezone(MSK_TZ).replace(tzinfo=None)
 
-        # ---- Находим целевую остановку (окно T+10..T+15) ----
         horizon_start = T + timedelta(minutes=10)
         horizon_end = T + timedelta(minutes=15)
         candidates = [
@@ -130,7 +115,6 @@ class FeatureBuilder:
         if tlat is None or tlon is None or np.isnan(tlat) or np.isnan(tlon):
             return {}
 
-        # ============ A. Тривиальные ============
         feats["tr_id_cat"] = str(vehicle_id)
         feats["target_stop_id_cat"] = str(target["stop_id"])
         feats["stop_geo_bucket"] = f"{round(tlon, 3)}_{round(tlat, 3)}"
@@ -146,7 +130,6 @@ class FeatureBuilder:
         feats["minute_of_day"] = T.hour * 60 + T.minute
         feats["dow"] = T.weekday()
 
-        # ============ B. Оконные фичи ============
         if current and not np.isnan(current.get("lat", np.nan)):
             feats["last_speed"] = float(current.get("speed") or 0)
             feats["last_heading"] = float(current.get("heading") or 0)
@@ -178,7 +161,6 @@ class FeatureBuilder:
                 feats[f"n_points_{name}"] = 0
                 feats[f"heading_change_{name}"] = float("nan")
 
-        # ============ C. Гео ============
         if current and not np.isnan(current.get("lat", np.nan)):
             lon0, lat0 = current["lon"], current["lat"]
             dist_straight = haversine_m(lon0, lat0, tlon, tlat)
@@ -203,7 +185,6 @@ class FeatureBuilder:
                       "implied_speed_kmh_straight", "speed_deficit_10m"]:
                 feats[k] = float("nan")
 
-        # ============ D. История по остановкам (из stop_crossings) ============
         feats["n_stops_passed"] = len(past_stops)
 
         if crossings:
@@ -227,7 +208,6 @@ class FeatureBuilder:
                       "own_delay_mean_all", "own_delay_std_all"]:
                 feats[k] = float("nan")
 
-        # ============ E. Peer-фичи ============
         RADIUS_TARGET_M = 750.0
         RADIUS_HERE_M = 600.0
 
@@ -265,8 +245,6 @@ class FeatureBuilder:
         else:
             feats["peer_speed_mean_here"] = float("nan")
             feats["peer_n_here"] = 0
-
-        # ============ F. cur_dev_trend, cur_dev_avg_last3 ============
         feats["cur_dev_trend"] = 0.0
         feats["cur_dev_avg_last3"] = feats["cur_dev_s"]
 

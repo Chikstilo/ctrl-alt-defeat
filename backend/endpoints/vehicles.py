@@ -1,4 +1,3 @@
-"""Привязка NDTP unit_id к vehicle_id и route_id."""
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,7 +24,6 @@ def set_vehicle_route(
     payload: VehicleRouteIn,
     db: Session = Depends(get_db),
 ) -> VehicleRoute:
-    """Создать или обновить привязку NDTP-устройства к маршруту."""
     record = db.scalar(
         select(VehicleRoute).where(VehicleRoute.unit_id == payload.unit_id)
     )
@@ -86,7 +84,6 @@ def deactivate_vehicle_route(
     unit_id: int,
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    """Мягко деактивировать устройство."""
     record = db.scalar(
         select(VehicleRoute).where(VehicleRoute.unit_id == unit_id)
     )

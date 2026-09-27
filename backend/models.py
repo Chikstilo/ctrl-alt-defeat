@@ -18,8 +18,6 @@ from database import Base
 
 
 class VehicleRoute(Base):
-    """Текущая привязка NDTP unitId к маршруту."""
-
     __tablename__ = "vehicle_routes"
     __table_args__ = (
         CheckConstraint("unit_id >= 0 AND unit_id <= 2147483647"),
@@ -136,11 +134,6 @@ class ProcessedStreamMessage(Base):
         nullable=False,
     )
 class StopCrossing(Base):
-    """
-    Факт прохождения остановки бортом.
-    Пишется воркером, когда автобус оказывается в 50м от плановой остановки.
-    Источник для фич own_delay_* (реальные задержки по пройденным остановкам).
-    """
     __tablename__ = "stop_crossings"
     __table_args__ = (
         Index("idx_stop_crossings_vehicle", "vehicle_id", "actual_time"),

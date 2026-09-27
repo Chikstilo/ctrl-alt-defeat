@@ -1,11 +1,3 @@
-"""
-Adapter-слой для React-дашборда.
-Возвращает данные в формате, который ждёт фронтенд (см. types.ts):
-- GET    /api/v1/routes               → RouteDef[]
-- GET    /api/v1/snapshot             → Snapshot {ts, vehicles, segments, incidents}
-- POST   /api/v1/incidents/{id}/ack   → подтверждение инцидента
-- DELETE /api/v1/incidents/{id}/ack   → снятие подтверждения
-"""
 import json
 import logging
 import time
@@ -29,7 +21,6 @@ ACK_TTL_SECONDS = 3600
 # ---------------------------------------------------------------- helpers
 
 def _get_cached_predictions(redis_client: Redis) -> dict[str, list[dict]]:
-    """{route_id: [prediction, ...]} из Redis кэша воркера."""
     by_route: dict[str, list[dict]] = {}
     try:
         for key in redis_client.scan_iter(match="route:*:vehicles", count=100):
@@ -51,7 +42,6 @@ def _get_cached_predictions(redis_client: Redis) -> dict[str, list[dict]]:
 
 
 def _get_last_positions(db: Session, vehicle_ids: list[str]) -> dict[str, dict]:
-    """Последняя телеметрия по каждому vehicle_id."""
     if not vehicle_ids:
         return {}
     subq = (
@@ -93,14 +83,13 @@ def _status_from_delay(delay_sec: int, has_pos: bool) -> str:
     if not has_pos:
         return "not_seen"
     if delay_sec > 60:
-        return "late"       # было 180
+        return "late"      
     if delay_sec < -30:
-        return "early"      # было -60
+        return "early"     
     return "on_time"
 
 
 def _stops_of_route(db: Session, route_id: str) -> list[dict]:
-    """Уникальные остановки маршрута в порядке появления в расписании."""
     rows = (
         db.query(Schedule)
         .filter(
@@ -124,12 +113,8 @@ def _stops_of_route(db: Session, route_id: str) -> list[dict]:
         })
     return out
 
-
-# ---------------------------------------------------------------- endpoints
-
 @router.get("/routes")
 def list_routes(db: Session = Depends(get_db)) -> list[dict]:
-    """Список маршрутов в формате RouteDef[]."""
     route_ids = [
         row[0] for row in
         db.query(Schedule.route_id).distinct().order_by(Schedule.route_id).all()
@@ -156,7 +141,6 @@ def snapshot(
     db: Session = Depends(get_db),
     redis_client: Redis = Depends(get_redis),
 ) -> dict:
-    """Снимок состояния системы в формате Snapshot из types.ts."""
     now_ms = int(time.time() * 1000)
 
     predictions = _get_cached_predictions(redis_client)
@@ -168,7 +152,6 @@ def snapshot(
     ]
     positions = _get_last_positions(db, all_vehicle_ids)
 
-    # ---- vehicles ----
     vehicles = []
     for route_id, recs in predictions.items():
         for rec in recs:
@@ -196,7 +179,6 @@ def snapshot(
                 "history": [prob / 100.0] * 5,
             })
 
-    # ---- segments ----
     segments = []
     for route_id, recs in predictions.items():
         stops = _stops_of_route(db, route_id)
@@ -216,7 +198,6 @@ def snapshot(
                 "cause": "jam" if risk > 0.5 else "light",
             })
 
-    # ---- incidents ----
     acked = _get_acked(redis_client)
     incidents = []
     for route_id, recs in predictions.items():
@@ -283,15 +264,6 @@ def whatif(
     db: Session = Depends(get_db),
     redis_client: Redis = Depends(get_redis),
 ) -> dict:
-    """
-    What-if анализ: что будет, если выпустить дополнительный ТС.
-    
-    Логика:
-    - Берём текущий прогноз для vehicle_id из Redis-кэша.
-    - Если выпустить N доп. ТС, задержка снижается на 20% × N (эмпирика).
-    - Возвращаем: было / стало для delay_seconds, probability, risk_level.
-    """
-    # Ищем актуальный прогноз в Redis по всем маршрутам
     current = None
     current_route = None
     for key in redis_client.scan_iter(match="route:*:vehicles", count=100):
@@ -318,7 +290,6 @@ def whatif(
     old_prob = float(current.get("probability") or 0)
     old_risk = current.get("risk_level", "low")
 
-    # Эмпирика: каждый доп. ТС снижает задержку на 20%
     reduction = min(0.8, 0.2 * max(0, extra_vehicles))
     new_delay = int(round(old_delay * (1 - reduction)))
     new_prob = round(old_prob * (1 - reduction), 1)

@@ -1,7 +1,3 @@
-"""
-Загрузка schedule.csv в PostgreSQL.
-Запуск: python load_schedule.py path/to/schedule.csv
-"""
 import csv
 import sys
 from datetime import datetime
@@ -18,7 +14,6 @@ def parse_dt(value: str) -> datetime:
             continue
     raise ValueError(f"Не могу распарсить дату: {value}")
 
-
 def load(path: str):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -29,9 +24,6 @@ def load(path: str):
             print(f"📋 Колонки: {reader.fieldnames}")
             for i, row in enumerate(reader, start=1):
                 try:
-                    # Адаптируем под реальные колонки schedule.csv:
-                    # tt_action_item_id, time_begin, time_fact_begin, order_date,
-                    # manual_fill, tr_id, geom, building_address
                     stop_id = row.get("tt_action_item_id") or row.get("stop_id")
                     tr_id = row.get("tr_id") or row.get("route_id")
                     sched = row.get("time_begin") or row.get("scheduled_arrival")
@@ -52,10 +44,9 @@ def load(path: str):
                     if errors <= 5:
                         print(f"   ⚠️ Строка {i}: {e}")
         db.commit()
-        print(f"\n✅ Загружено: {count}\n❌ Ошибок: {errors}")
+        print(f"\nЗагружено: {count}\nОшибок: {errors}")
     finally:
         db.close()
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

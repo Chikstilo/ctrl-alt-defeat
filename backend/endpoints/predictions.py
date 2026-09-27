@@ -27,13 +27,10 @@ def parse_dt(value) -> datetime | None:
 def parse_cached_prediction(raw: str) -> PredictionOut:
     data = json.loads(raw)
 
-    # Обязательное поле
     data["arrival_time"] = parse_dt(data.get("arrival_time"))
     if data["arrival_time"] is None:
-        # Если по какой-то причине пусто — подставим now+15 мин
         data["arrival_time"] = datetime.now(MSK_TZ) + timedelta(minutes=15)
 
-    # Опциональное
     if data.get("scheduled_arrival"):
         data["scheduled_arrival"] = parse_dt(data["scheduled_arrival"])
 

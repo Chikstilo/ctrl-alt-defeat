@@ -17,8 +17,8 @@ logging.basicConfig(
 
 MAX_DATA_SIZE = 65_535
 HEARTBEAT_KEY = "ndtp:heartbeat"
-HEARTBEAT_INTERVAL = 5   # секунд
-HEARTBEAT_TTL = 10       # секунд (в 2 раза больше интервала)
+HEARTBEAT_INTERVAL = 5   
+HEARTBEAT_TTL = 10       
 
 
 async def heartbeat_task() -> None:
@@ -56,8 +56,6 @@ def save_realtime_packet(packet) -> None:
             .one_or_none()
         )
 
-        # Незарегистрированный unit не теряем: сохраняем под его числовым ID,
-        # но оставляем route_id пустым. Привязку можно добавить через /vehicles/.
         vehicle_id = mapping.vehicle_id if mapping else str(packet.peer_address)
         route_id = mapping.route_id if mapping else None
 
@@ -138,7 +136,6 @@ async def handle_client(
                 signature, data_size = struct.unpack("<HH", buffer[:4])
 
                 if signature != 0x7E7E:
-                    # Ищем следующую сигнатуру, чтобы восстановить поток.
                     next_signature = buffer.find(b"\x7e\x7e", 1)
                     if next_signature < 0:
                         buffer.clear()
@@ -165,9 +162,6 @@ async def handle_client(
                     continue
 
                 if packet.is_handshake:
-                    # В приложенной спецификации описан формат запроса,
-                    # но не описан подтверждённый формат ответа.
-                    # Поэтому здесь не отправляем выдуманный ответ.
                     logger.info(
                         "Handshake: unit_id=%s request_id=%s",
                         packet.peer_address,
@@ -190,7 +184,7 @@ async def handle_client(
 
 
 async def main() -> None:
-    asyncio.create_task(heartbeat_task())   # <-- добавить эту строку
+    asyncio.create_task(heartbeat_task())  
     
     server = await asyncio.start_server(
         handle_client,
